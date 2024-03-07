@@ -6,28 +6,68 @@
 #define BUILD_EKF_ESTIMATOR_H
 
 #include "param_estimator/type_def.h"
+#include "InertiaEstimatorEKF.h"
+#include "rt_nonfinite.h"
+#include "rtwtypes.h"
+#include <cstddef>
+#include <cstdlib>
+
 using namespace Eigen;
+
+struct States {
+    Eigen::Vector3d pos;
+    Eigen::Vector3d vel;
+    Eigen::Vector3d acc;
+    Eigen::Quaterniond att;
+    Eigen::Vector3d ang_vel;
+    Eigen::Vector3d ang_acc;
+};
+struct Inputs {
+    double thrust;
+    Eigen::Vector3d torque;
+};
+struct Params {
+    double mass;
+    Eigen::Vector3d inertia;
+};
+struct Initial_val {
+    double m;
+    double var_m, R_m, Q_m;
+    Matrix<double, 6, 1> x2;
+    Matrix<double, 6, 6> var_x2, R_x2;
+    Matrix3d Q_x2;
+};
 
 class EKF_estimator {
 public:
-    EKF_estimator();
+    explicit EKF_estimator(double sample_T_ = 0.01);
 
-    void estimate(const States &states,const Inputs &inputs);
+    void estimate(const States &measurements, const Inputs &inputs);
 
-    void get_estimates(double &_m, Vector3d &_j) const;
+    void get_estimates(Params &param_estimates, States &state_estimates) const;
+
+    void reinit(Initial_val &init_val);
 
 private:
-    Vector3d acc, ang_vel, ang_acc;
-    Quaterniond att;
-    Vector3d torque, thrust, M;//torque~px4 torque;thrust~px4 thrust;M~moments to use
+    Vector3d acc_meas, ang_vel, ang_vel_meas;
+    Quaterniond att_meas;
+    Vector3d M;//torque~px4 torque;thrust~px4 thrust;M~moments to use
     double T;//thrust to use
-    Vector4d actuator;// px4 actuator output
-    double m;//mass
+    double m;//mass-x1
+    Matrix<double, 6, 1> x2;//Omega inertia
     Vector3d j;//inertia
+    double sample_T;
     double var_m, R_m, H_m, K_m, Q_m;
-    Matrix3d var_j, R_j, H_j, K_j, Q_j;
+    Matrix<double, 6, 6> var_x2, R_x2, F_x2;
+    Matrix<double, 6, 3> K_x2;
+    Matrix<double, 3, 6> H_x2;
+    Matrix3d Q_x2;
+    InertiaEstimatorEKF InertiaEstimator;
 
-    void pre_process(const States &states,const Inputs &inputs);
+
+    void pre_process(const States &measurements, const Inputs &inputs);
+
+    void calculate_F();
 
     void calculate_H();
 
@@ -35,7 +75,8 @@ private:
 
     double dynamic_m();
 
-    Vector3d dynamic_j();
+    void dynamic_x2();
 };
+
 
 #endif //BUILD_EKF_ESTIMATOR_H

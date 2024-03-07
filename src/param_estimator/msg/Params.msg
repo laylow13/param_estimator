@@ -1,5 +1,7 @@
 std_msgs/Header header
 float64 m
-float64 jxx
-float64 jyy
-float64 jzz
+geometry_msgs/Vector3 j
+geometry_msgs/Vector3 pos
+geometry_msgs/Vector3 vel
+geometry_msgs/Quaternion att
+geometry_msgs/Vector3 ang_vel

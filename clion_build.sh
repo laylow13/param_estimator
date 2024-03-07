@@ -1,1 +1,2 @@
-colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
+colcon build  --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja -DCMAKE_VERBOSE_MAKEFILE=ON
+ 
