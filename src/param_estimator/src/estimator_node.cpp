@@ -15,16 +15,56 @@
 #include "geometry_msgs/msg/vector3.hpp"
 #include "online_param_estimator/msg/params.hpp"
 #include "EKF_estimator/EKF_estimator.h"
+#include "vector"
 //using std::placeholders::_1;
 using namespace Eigen;
+
+class Integral_filter {
+    Vector3d last_output;
+    Vector3d input;
+    double alpha;
+public:
+    explicit Integral_filter(double alpha) : last_output(Vector3d::Zero()), input(Vector3d::Zero()), alpha(alpha) {}
+
+    Vector3d update(const Vector3d &_input) {
+        input = _input;
+        Vector3d output = alpha * input + (1 - alpha) * last_output;
+        last_output = output;
+        return output;
+    }
+};
+
+class Moving_avg_filter {
+private:
+    std::vector<Vector3d> window;  // 存储滑动窗口中的元素
+    int size;                 // 窗口大小
+    Vector3d avg_vector;                  // 窗口元素总和
+
+public:
+    Moving_avg_filter(int window_size) : size(window_size) {}
+
+    Vector3d update(const Vector3d &_input) {
+        if (window.size() >= size) {
+            window.erase(window.begin());
+        }
+        window.push_back(_input);
+        avg_vector = Vector3d::Zero();
+        for (const auto &i: window) {
+            avg_vector += i;
+        }
+        avg_vector /= window.size();
+        return avg_vector;
+    }
+};
 
 Vector3d acc, ang_vel, ang_acc, torque, thrust;
 Vector4d actuator, actuator_sim, actuator_cmd;
 Quaterniond att;
-double sample_T = 0.08;
+double sample_T = 0.005;
 
 EKF_estimator ekfEstimator(sample_T);
-
+Integral_filter torque_filter_1(0.01);
+Moving_avg_filter torque_filter_2(20);
 rclcpp::Publisher<online_param_estimator::msg::Params>::SharedPtr param_pub;
 rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr inputs_pub;
 
@@ -140,6 +180,9 @@ void calculate_inputs(Inputs &_inputs) {
         _inputs.torque += (ct * rotor_pos[i].cross(axes) - ct * km[i] * axes) * actuator_sim(i);
         _inputs.thrust += actuator_sim(i);
     }
+    _inputs.torque = torque_filter_2.update(_inputs.torque);
 //    _inputs.torque=torque;
 }
+
+
 

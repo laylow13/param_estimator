@@ -19,11 +19,11 @@ EKF_estimator::EKF_estimator(double sample_T_) {
     R_x2 << 0.0001, 0, 0, 0, 0, 0,
             0, 0.0001, 0, 0, 0, 0,
             0, 0, 0.0001, 0, 0, 0,
-            0, 0, 0, 0.00001, 0, 0,
-            0, 0, 0, 0, 0.00001, 0,
-            0, 0, 0, 0, 0, 0.00001;
+            0, 0, 0, 0.01, 0, 0,
+            0, 0, 0, 0, 0.01, 0,
+            0, 0, 0, 0, 0, 0.01;
 //    R_x2 = Matrix<double, 6, 6>::Identity() * 0.1;
-    Q_x2 = Matrix3d::Identity() * 1e-2;
+    Q_x2 = Matrix3d::Identity() * 0.1;
 }
 
 void EKF_estimator::estimate(const States &measurements, const Inputs &inputs) {
