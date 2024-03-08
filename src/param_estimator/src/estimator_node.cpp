@@ -57,14 +57,45 @@ public:
     }
 };
 
+class Moving_window_var {
+private:
+    std::vector<Vector3d> window;  // 存储滑动窗口中的元素
+    int size;                 // 窗口大小
+    Vector3d var;                  // 窗口元素总和
+
+public:
+    Moving_window_var(int window_size) : size(window_size) {}
+
+    Vector3d update(const Vector3d &_input) {
+        if (window.size() >= size) {
+            window.erase(window.begin());
+        }
+        window.push_back(_input);
+        Vector3d avg_vector = Vector3d::Zero();
+        for (const auto &i: window) {
+            avg_vector += i;
+        }
+        avg_vector /= window.size();
+        Vector3d var_vector = Vector3d::Zero();
+        for (const auto &i: window) {
+            Vector3d temp = i - avg_vector;
+            temp = temp.array() * temp.array();
+            var_vector += temp;
+        }
+        var_vector /= window.size();
+        return var_vector;
+    }
+};
+
 Vector3d acc, ang_vel, ang_acc, torque, thrust;
 Vector4d actuator, actuator_sim, actuator_cmd;
 Quaterniond att;
-double sample_T = 0.005;
+double sample_T = 0.05;
 
 EKF_estimator ekfEstimator(sample_T);
 Integral_filter torque_filter_1(0.01);
-Moving_avg_filter torque_filter_2(20);
+Moving_avg_filter torque_filter_2(5);
+Moving_window_var torque_var_calc(20);
 rclcpp::Publisher<online_param_estimator::msg::Params>::SharedPtr param_pub;
 rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr inputs_pub;
 
@@ -145,6 +176,9 @@ int main(int argc, char *argv[]) {
                         msg.z = inputs.torque(2);
                         inputs_pub->publish(msg);
                     }
+                    Vector3d var_torque = torque_var_calc.update(inputs.torque);
+                    std::cout << var_torque << "-------\n";
+                    ekfEstimator.set_var_torque(var_torque.asDiagonal());
                     ekfEstimator.estimate(measurements, inputs);
                 }
                 {

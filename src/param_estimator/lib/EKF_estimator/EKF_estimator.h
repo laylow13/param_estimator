@@ -35,7 +35,7 @@ struct Initial_val {
     double var_m, R_m, Q_m;
     Matrix<double, 6, 1> x2;
     Matrix<double, 6, 6> var_x2, R_x2;
-    Matrix3d Q_x2;
+    Matrix3d Q_x2, var_torque;
 };
 
 class EKF_estimator {
@@ -48,6 +48,8 @@ public:
 
     void reinit(Initial_val &init_val);
 
+    void set_var_torque(const Matrix3d &_var) { var_torque = _var; }
+
 private:
     Vector3d acc_meas, ang_vel, ang_vel_meas;
     Quaterniond att_meas;
@@ -59,15 +61,17 @@ private:
     double sample_T;
     double var_m, R_m, H_m, K_m, Q_m;
     Matrix<double, 6, 6> var_x2, R_x2, F_x2;
-    Matrix<double, 6, 3> K_x2;
+    Matrix<double, 6, 3> K_x2, G_x2;
     Matrix<double, 3, 6> H_x2;
-    Matrix3d Q_x2;
+    Matrix3d Q_x2, var_torque;
     InertiaEstimatorEKF InertiaEstimator;
 
 
     void pre_process(const States &measurements, const Inputs &inputs);
 
     void calculate_F();
+
+    void calculate_G();
 
     void calculate_H();
 

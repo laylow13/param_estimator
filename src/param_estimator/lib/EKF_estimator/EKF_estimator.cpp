@@ -16,14 +16,15 @@ EKF_estimator::EKF_estimator(double sample_T_) {
 
     x2 = VectorXd::Ones(6, 1) * 1e-3;
     var_x2 = Matrix<double, 6, 6>::Constant(1e-4) + Matrix<double, 6, 6>::Identity();
-    R_x2 << 0.0001, 0, 0, 0, 0, 0,
-            0, 0.0001, 0, 0, 0, 0,
-            0, 0, 0.0001, 0, 0, 0,
-            0, 0, 0, 0.01, 0, 0,
-            0, 0, 0, 0, 0.01, 0,
-            0, 0, 0, 0, 0, 0.01;
+    R_x2 << 0.00001, 0, 0, 0, 0, 0,
+            0, 0.00001, 0, 0, 0, 0,
+            0, 0, 0.00001, 0, 0, 0,
+            0, 0, 0, 0.00001, 0, 0,
+            0, 0, 0, 0, 0.00001, 0,
+            0, 0, 0, 0, 0, 0.00001;
 //    R_x2 = Matrix<double, 6, 6>::Identity() * 0.1;
-    Q_x2 = Matrix3d::Identity() * 0.1;
+    Q_x2 = Matrix3d::Identity() * 0.001;
+    var_torque = Matrix3d::Zero();
 }
 
 void EKF_estimator::estimate(const States &measurements, const Inputs &inputs) {
@@ -36,8 +37,9 @@ void EKF_estimator::estimate(const States &measurements, const Inputs &inputs) {
     var_m = var_m + R_m;
 
     calculate_F();
+    calculate_G();
     dynamic_x2();//state transition for x2
-    var_x2 = F_x2 * var_x2 * F_x2.transpose() + R_x2;
+    var_x2 = F_x2 * var_x2 * F_x2.transpose() + G_x2 * var_torque * G_x2.transpose() + R_x2;
     //2.measurement
     calculate_H();
     calculate_K();
@@ -72,6 +74,7 @@ void EKF_estimator::reinit(Initial_val &init_val) {
     var_x2 = init_val.var_x2;
     R_x2 = init_val.R_x2;
     Q_x2 = init_val.Q_x2;
+    var_torque = init_val.var_torque;
 }
 
 void EKF_estimator::pre_process(const States &measurements, const Inputs &inputs) {
@@ -149,6 +152,18 @@ void EKF_estimator::calculate_F() {
             0, 0, 0, 1, 0, 0,
             0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 1;
+}
+
+void EKF_estimator::calculate_G() {
+    const auto &I_x = x2(3);
+    const auto &I_y = x2(4);
+    const auto &I_z = x2(5);
+    G_x2 << sample_T / I_x, 0, 0,
+            0, sample_T / I_y, 0,
+            0, 0, sample_T / I_z,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0;
 }
 
 void EKF_estimator::calculate_H() {
